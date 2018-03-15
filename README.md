@@ -26,7 +26,7 @@ FileDownloader is installed by adding the following dependency to your `build.gr
 
 ```groovy
 dependencies {
-    compile 'com.liulishuo.filedownloader:library:1.6.8'
+    compile 'com.liulishuo.filedownloader:library:1.7.2'
 }
 ```
 
@@ -38,7 +38,7 @@ From now on, FileDownloader support following components to be customized by you
 | --- | --- | ---
 | Connection | [FileDownloadConnection][FileDownloadConnection-java-link] | [FileDownloadUrlConnection][FileDownloadUrlConnection-java-link]
 | OutputStream | [FileDownloadOutputStream][FileDownloadOutputStream-java-link] | [FileDownloadRandomAccessFile][FileDownloadRandomAccessFile-java-link]
-| Database | [FileDownloadDatabase][FileDownloadDatabase-java-link] | [DefaultDatabaseImpl][DefaultDatabaseImpl-java-link]
+| Database | [FileDownloadDatabase][FileDownloadDatabase-java-link] | [RemitDatabase][RemitDatabase-java-link]
 | ConnectionCountAdapter | [ConnectionCountAdapter][ConnectionCountAdapter-java-link] | [DefaultConnectionCountAdapter][DefaultConnectionCountAdapter-java-link]
 | IdGenerator | [IdGenerator][IdGenerator-java-link] | [DefaultIdGenerator][DefaultIdGenerator-java-link]
 
@@ -56,6 +56,9 @@ Just create your own `DownloadMgrInitialParams.InitCustomMaker` and put those cu
 - Comments as much as possible.
 - Commit message format follow: [AngularJS's commit message convention](https://github.com/angular/angular.js/blob/master/CONTRIBUTING.md#-git-commit-guidelines) .
 - The change of each commit as small as possible.
+
+![][structure-img]
+![][message-system-img]
 
 ## Usage
 
@@ -84,6 +87,8 @@ limitations under the License.
 [license_2_svg]: https://img.shields.io/hexpm/l/plug.svg
 [android_platform_svg]: https://img.shields.io/badge/Platform-Android-brightgreen.svg
 [file_downloader_svg]: https://img.shields.io/badge/Android-FileDownloader-orange.svg
+[structure-img]: https://github.com/lingochamp/FileDownloader/raw/master/art/structure.png
+[message-system-img]: https://github.com/lingochamp/FileDownloader/raw/master/art/message-system.png
 [hybrid_test_demo_gif]: https://github.com/lingochamp/FileDownloader/raw/master/art/hybrid_test_demo.gif
 [parallel_tasks_demo_gif]: https://github.com/lingochamp/FileDownloader/raw/master/art/parallel_tasks_demo.gif
 [serial_tasks_demo_gif]: https://github.com/lingochamp/FileDownloader/raw/master/art/serial_tasks_demo.gif
@@ -99,8 +104,8 @@ limitations under the License.
 [build_status_link]: https://travis-ci.org/lingochamp/FileDownloader
 [FileDownloadConnection-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/connection/FileDownloadConnection.java
 [FileDownloadUrlConnection-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/connection/FileDownloadUrlConnection.java
-[FileDownloadDatabase-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/services/FileDownloadDatabase.java
-[DefaultDatabaseImpl-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/services/DefaultDatabaseImpl.java
+[FileDownloadDatabase-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/database/RemitDatabase.java
+[RemitDatabase-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/database/RemitDatabase.java
 [FileDownloadOutputStream-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/stream/FileDownloadOutputStream.java
 [FileDownloadRandomAccessFile-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/stream/FileDownloadRandomAccessFile.java
 [ConnectionCountAdapter-java-link]: https://github.com/lingochamp/FileDownloader/blob/master/library/src/main/java/com/liulishuo/filedownloader/util/FileDownloadHelper.java#L100

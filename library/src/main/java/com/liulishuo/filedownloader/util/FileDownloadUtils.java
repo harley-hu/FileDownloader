@@ -37,6 +37,7 @@ import com.liulishuo.filedownloader.stream.FileDownloadOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -391,10 +392,27 @@ public class FileDownloadUtils {
                 + INTERNAL_DOCUMENT_NAME, OLD_FILE_CONVERTED_FILE_NAME);
     }
 
-    private static final Pattern CONTENT_DISPOSITION_PATTERN =
+    private static final Pattern CONTENT_DISPOSITION_QUOTED_PATTERN =
             Pattern.compile("attachment;\\s*filename\\s*=\\s*\"([^\"]*)\"");
+    // note on http://www.ietf.org/rfc/rfc1806.txt
+    private static final Pattern CONTENT_DISPOSITION_NON_QUOTED_PATTERN =
+            Pattern.compile("attachment;\\s*filename\\s*=\\s*(.*)");
 
-    //
+    public static long parseContentRangeFoInstanceLength(String contentRange) {
+        if (contentRange == null) return -1;
+
+        final String[] session = contentRange.split("/");
+        if (session.length >= 2) {
+            try {
+                return Long.parseLong(session[1]);
+            } catch (NumberFormatException e) {
+                FileDownloadLog.w(FileDownloadUtils.class, "parse instance length failed with %s",
+                        contentRange);
+            }
+        }
+
+        return -1;
+    }
 
     /**
      * The same to com.android.providers.downloads.Helpers#parseContentDisposition.
@@ -410,7 +428,12 @@ public class FileDownloadUtils {
         }
 
         try {
-            Matcher m = CONTENT_DISPOSITION_PATTERN.matcher(contentDisposition);
+            Matcher m = CONTENT_DISPOSITION_QUOTED_PATTERN.matcher(contentDisposition);
+            if (m.find()) {
+                return m.group(1);
+            }
+
+            m = CONTENT_DISPOSITION_NON_QUOTED_PATTERN.matcher(contentDisposition);
             if (m.find()) {
                 return m.group(1);
             }
@@ -520,9 +543,47 @@ public class FileDownloadUtils {
         return newEtag;
     }
 
+    // accept range is effect by  response code and Accept-Ranges header field.
+    public static boolean isAcceptRange(int responseCode, FileDownloadConnection connection) {
+        if (responseCode == HttpURLConnection.HTTP_PARTIAL
+                || responseCode == FileDownloadConnection.RESPONSE_CODE_FROM_OFFSET) return true;
+
+        final String acceptRanges = connection.getResponseHeaderField("Accept-Ranges");
+        return "bytes".equals(acceptRanges);
+    }
+
+    // because of we using one of two HEAD method to request or using range:0-0 to trial connection
+    // only if connection api not support, so we test content-range first and then test
+    // content-length.
+    public static long findInstanceLengthForTrial(FileDownloadConnection connection) {
+        long length = findInstanceLengthFromContentRange(connection);
+        if (length < 0) {
+            length = TOTAL_VALUE_IN_CHUNKED_RESOURCE;
+            FileDownloadLog.w(FileDownloadUtils.class, "don't get instance length from"
+                    + "Content-Range header");
+        }
+        // the response of HEAD method is not very canonical sometimes(it depends on server
+        // implementation)
+        // so that it's uncertain the content-length is the same as the response of GET method if
+        // content-length=0, so we have to filter this case in here.
+        if (length == 0 && FileDownloadProperties.getImpl().trialConnectionHeadMethod) {
+            length = TOTAL_VALUE_IN_CHUNKED_RESOURCE;
+        }
+
+        return length;
+    }
+
+    public static long findInstanceLengthFromContentRange(FileDownloadConnection connection) {
+        return parseContentRangeFoInstanceLength(getContentRangeHeader(connection));
+    }
+
+    private static String getContentRangeHeader(FileDownloadConnection connection) {
+        return connection.getResponseHeaderField("Content-Range");
+    }
+
     public static long findContentLength(final int id, FileDownloadConnection connection) {
-        long contentLength = FileDownloadUtils
-                .convertContentLengthString(connection.getResponseHeaderField("Content-Length"));
+        long contentLength = convertContentLengthString(
+                connection.getResponseHeaderField("Content-Length"));
         final String transferEncoding = connection.getResponseHeaderField("Transfer-Encoding");
 
         if (contentLength < 0) {
@@ -552,6 +613,31 @@ public class FileDownloadUtils {
         }
 
         return contentLength;
+    }
+
+    public static long findContentLengthFromContentRange(FileDownloadConnection connection) {
+        final String contentRange = getContentRangeHeader(connection);
+        long contentLength = parseContentLengthFromContentRange(contentRange);
+        if (contentLength  < 0) contentLength = TOTAL_VALUE_IN_CHUNKED_RESOURCE;
+        return contentLength;
+    }
+
+    public static long parseContentLengthFromContentRange(String contentRange) {
+        if (contentRange == null || contentRange.length() == 0) return -1;
+        final String pattern = "bytes (\\d+)-(\\d+)/\\d+";
+        try {
+            final Pattern r = Pattern.compile(pattern);
+            final Matcher m = r.matcher(contentRange);
+            if (m.find()) {
+                final long rangeStart = Long.parseLong(m.group(1));
+                final long rangeEnd = Long.parseLong(m.group(2));
+                return rangeEnd - rangeStart + 1;
+            }
+        } catch (Exception e) {
+            FileDownloadLog.e(FileDownloadUtils.class, e, "parse content length"
+                    + " from content range error");
+        }
+        return -1;
     }
 
     public static String findFilename(FileDownloadConnection connection, String url) {

@@ -25,6 +25,7 @@ import com.liulishuo.filedownloader.util.FileDownloadLog;
 import com.liulishuo.filedownloader.util.FileDownloadUtils;
 
 import java.io.IOException;
+import java.net.ProtocolException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +57,23 @@ public class ConnectTask {
         this.profile = profile;
     }
 
+    void updateConnectionProfile(long downloadedOffset) {
+        if (downloadedOffset == profile.currentOffset) {
+            FileDownloadLog.w(this, "no data download, no need to update");
+            return;
+        }
+        final long newContentLength =
+                profile.contentLength - (downloadedOffset - profile.currentOffset);
+        profile = ConnectionProfile.ConnectionProfileBuild.buildConnectionProfile(
+                profile.startOffset,
+                downloadedOffset,
+                profile.endOffset,
+                newContentLength);
+        if (FileDownloadLog.NEED_LOG) {
+            FileDownloadLog.i(this, "after update profile:%s", profile);
+        }
+    }
+
     FileDownloadConnection connect() throws IOException, IllegalAccessException {
         FileDownloadConnection connection = CustomComponentHolder.getImpl().createConnection(url);
 
@@ -69,12 +87,17 @@ public class ConnectTask {
         // allow access to the request header after it connected.
         requestHeader = connection.getRequestHeaderFields();
         if (FileDownloadLog.NEED_LOG) {
-            FileDownloadLog.d(this, "%s request header %s", downloadId, requestHeader);
+            FileDownloadLog.d(this, "<---- %s request header %s", downloadId, requestHeader);
         }
 
         connection.execute();
         redirectedUrlList = new ArrayList<>();
         connection = RedirectHandler.process(requestHeader, connection, redirectedUrlList);
+
+        if (FileDownloadLog.NEED_LOG) {
+            FileDownloadLog.d(this, "----> %s response header %s", downloadId,
+                    connection.getResponseHeaderFields());
+        }
 
         return connection;
     }
@@ -109,7 +132,7 @@ public class ConnectTask {
         }
     }
 
-    private void addRangeHeader(FileDownloadConnection connection) {
+    private void addRangeHeader(FileDownloadConnection connection) throws ProtocolException {
         if (connection.dispatchAddResumeOffset(etag, profile.startOffset)) {
             return;
         }
@@ -117,14 +140,7 @@ public class ConnectTask {
         if (!TextUtils.isEmpty(etag)) {
             connection.addHeader("If-Match", etag);
         }
-        final String range;
-        if (profile.endOffset == 0) {
-            range = FileDownloadUtils.formatString("bytes=%d-", profile.currentOffset);
-        } else {
-            range = FileDownloadUtils
-                    .formatString("bytes=%d-%d", profile.currentOffset, profile.endOffset);
-        }
-        connection.addHeader("Range", range);
+        profile.processProfile(connection);
     }
 
     private void fixNeededHeader(FileDownloadConnection connection) {

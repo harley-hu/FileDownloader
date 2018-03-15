@@ -82,7 +82,10 @@ public class FetchDataTask {
 
         if (paused) return;
 
-        final long contentLength = FileDownloadUtils.findContentLength(connectionIndex, connection);
+        long contentLength = FileDownloadUtils.findContentLength(connectionIndex, connection);
+        if (contentLength == TOTAL_VALUE_IN_CHUNKED_RESOURCE) {
+            contentLength = FileDownloadUtils.findContentLengthFromContentRange(connection);
+        }
         if (contentLength == 0) {
             throw new FileDownloadGiveUpRetryException(FileDownloadUtils.
                     formatString(
@@ -93,7 +96,7 @@ public class FetchDataTask {
 
         if (this.contentLength > 0 && contentLength != this.contentLength) {
             final String range;
-            if (endOffset == 0) {
+            if (endOffset == ConnectionProfile.RANGE_INFINITE) {
                 range = FileDownloadUtils.formatString("range[%d-)", currentOffset);
             } else {
                 range = FileDownloadUtils.formatString("range[%d-%d)", currentOffset, endOffset);
@@ -186,7 +189,7 @@ public class FetchDataTask {
         if (contentLength != TOTAL_VALUE_IN_CHUNKED_RESOURCE && contentLength != fetchedLength) {
             throw new FileDownloadGiveUpRetryException(
                     FileDownloadUtils.formatString("fetched length[%d] != content length[%d],"
-                                    + " range[%d, %d) offset[%d] fetch begin offset",
+                                    + " range[%d, %d) offset[%d] fetch begin offset[%d]",
                             fetchedLength, contentLength,
                             startOffset, endOffset, currentOffset, fetchBeginOffset));
         }
@@ -229,7 +232,7 @@ public class FetchDataTask {
         }
 
         if (bufferPersistToDevice) {
-            final boolean isBelongMultiConnection = hostRunnable != null;
+            final boolean isBelongMultiConnection = connectionIndex >= 0;
             if (isBelongMultiConnection) {
                 // only need update the connection table.
                 database.updateConnectionModel(downloadId, connectionIndex, currentOffset);
